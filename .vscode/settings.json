@@ -1,0 +1,9 @@
+{
+    "Lua.diagnostics.globals": [
+        "anim8",
+        "cam"
+    ],
+    "Lua.diagnostics.disable": [
+        "lowercase-global"
+    ]
+}
