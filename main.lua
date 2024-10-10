@@ -58,6 +58,7 @@ local function changeGameState(state)
     game.state["ended"] = state == "ended"
     game.state["running"] = state == "running"
     game.state["paused"] = state == "paused"
+    game.state["level1"] = state == "level1"
 end
 
 local function startNewGame ()
@@ -92,8 +93,11 @@ function love.load()
     love.graphics.setDefaultFilter("nearest", "nearest")
 
     sti = require 'libraries/sti'
+    -- Mapas
     gameMap = sti('maps/testMap.lua')
     menuMap = sti ('maps/menu.lua')
+    -- Levels
+    level1Map = sti('maps/level1.lua')
 
     love.window.setTitle("PETGAME")
     love.mouse.setVisible(false)
@@ -132,6 +136,14 @@ function love.load()
         end
     end
 
+    if level1Map.layers["Walls"] then
+    for i, obj in pairs(level1Map.layers["Walls"].objects) do
+            local wall = world:newRectangleCollider(obj.x, obj.y, obj.width, obj.height)
+            wall:setType('static')
+            table.insert(walls, wall)
+        end
+    end
+
     buttons.menu_state.play_game = button("Jogar", startNewGame, nil, 140, 40)
     buttons.menu_state.settings = button("Ajustes", nil, nil, 140, 40)
     buttons.menu_state.exit_game = button("Sair", love.event.quit, nil, 140, 40)
@@ -149,7 +161,7 @@ function love.update(dt)
 
     local isMoving = false
 
-    if game.state["running"] then
+    if game.state["running"] or game.state["level1"] then
         player.anim:update(dt)
 
         local vx = 0
@@ -242,6 +254,15 @@ function love.draw()
         cam:detach() 
     end
 
+    if game.state["level1"] then
+        cam:attach()
+            level1Map:drawLayer(level1Map.layers["Ground"]) --desenhando chão
+            level1Map:drawLayer(level1Map.layers["and"]) --desenhando porta lógica and
+            player.anim:draw(player.spriteSheet, player.x, player.y, nil, 5, nil, 6, 9) --desenhando o boneco
+            --world:draw()
+        cam:detach() 
+    end
+
     if game.state["menu"] then
         menuMap:drawLayer(menuMap.layers["default"])
         menuMap:drawLayer(menuMap.layers["trees"])
@@ -279,4 +300,27 @@ function love.keypressed(key)
     if key == 'z' then
         sounds.music:stop()
     end
+
+    if key == 'e' then
+        if game.state["running"] then
+            if isNearInteractionObject() then
+                changeGameState("level1")
+            end
+        end
+    end
+end
+
+function isNearInteractionObject()
+    local playerX, playerY = player.x, player.y  -- Posições do jogador
+    local Chair1X, Chair1Y = 64, 896
+
+    if not Chair1X or not Chair1Y then
+        return false  -- Se as variáveis não foram inicializadas, o jogador não está perto do objeto
+    end
+
+    -- Verifica se o jogador está dentro de uma certa distância do objeto
+    if math.abs(playerX - Chair1X) < 100 and math.abs(playerY - Chair1Y) < 100 then
+        return true
+    end
+    return false
 end
