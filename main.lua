@@ -9,7 +9,7 @@ local game = {
         menu = true,
         paused = false,
         running = false,
-        paused = false,
+        ended = false,
     },
     --points = 0,
     --levels = {15, 30, 45, 60, 75, 120}
@@ -58,7 +58,6 @@ local function changeGameState(state)
     game.state["ended"] = state == "ended"
     game.state["running"] = state == "running"
     game.state["paused"] = state == "paused"
-    game.state["level1"] = state == "level1"
 end
 
 local function startNewGame ()
@@ -82,6 +81,10 @@ function love.mousepressed(x, y, button, istouch, presses) --Mouse clicar nos bo
     end
 end
 
+local isGateHeld = false  -- Variável que controla se a porta está sendo segurada
+local gate = {}  -- Estrutura para representar a porta AND
+local andGates = {} -- Armazena todos os objetos que representam "and"
+
 function love.load()
     wf = require 'libraries/windfield'
     world = wf.newWorld(0, 0)
@@ -98,6 +101,27 @@ function love.load()
     menuMap = sti ('maps/menu.lua')
     -- Levels
     level1Map = sti('maps/level1.lua')
+    
+    --Porta and na posição inicial (level1)
+    gate = {
+        x = 762.667,
+        y = 1054.67,
+        width = 112,
+        height = 177.333
+    }
+
+    if level1Map.layers["Walls"] then
+        for _, object in pairs(level1Map.layers["Walls"].objects) do
+            if object.type == "and_gate" then  -- Certifique-se de que os objetos têm o tipo correto
+                table.insert(andGates, object)  -- Adiciona cada objeto "and" à tabela
+            end
+        end
+    end
+
+    if isGateHeld then
+        gateTileX = player.x
+        gateTileY = player.y
+    end
 
     love.window.setTitle("PETGAME")
     love.mouse.setVisible(false)
@@ -128,21 +152,7 @@ function love.load()
     player.anim = player.animations.left
 
     walls = {}
-    if gameMap.layers["Walls"] then
-        for i, obj in pairs(gameMap.layers["Walls"].objects) do
-            local wall = world:newRectangleCollider(obj.x, obj.y, obj.width, obj.height)
-            wall:setType('static')
-            table.insert(walls, wall)
-        end
-    end
-
-    if level1Map.layers["Walls"] then
-    for i, obj in pairs(level1Map.layers["Walls"].objects) do
-            local wall = world:newRectangleCollider(obj.x, obj.y, obj.width, obj.height)
-            wall:setType('static')
-            table.insert(walls, wall)
-        end
-    end
+    loadMapCollisions(gameMap)
 
     buttons.menu_state.play_game = button("Jogar", startNewGame, nil, 140, 40)
     buttons.menu_state.settings = button("Ajustes", nil, nil, 140, 40)
@@ -161,7 +171,7 @@ function love.update(dt)
 
     local isMoving = false
 
-    if game.state["running"] or game.state["level1"] then
+    if game.state["running"] then
         player.anim:update(dt)
 
         local vx = 0
@@ -227,6 +237,13 @@ function love.update(dt)
         cam.y = (mapH - h/2)
     end
     --
+    
+    -- Se o jogador estiver segurando a porta, movê-la com ele
+    if isGateHeld and heldGate then
+        local dx = player.x - heldGate.x  -- Diferença na posição X
+        local dy = player.y - heldGate.y  -- Diferença na posição Y
+        moveGate(andGates, dx, dy)  -- Mover todas as peças da porta "and"
+    end
 end
 
 function love.draw()
@@ -254,10 +271,16 @@ function love.draw()
         cam:detach() 
     end
 
-    if game.state["level1"] then
+    if currentMap == "level1" then
         cam:attach()
             level1Map:drawLayer(level1Map.layers["Ground"]) --desenhando chão
             level1Map:drawLayer(level1Map.layers["and"]) --desenhando porta lógica and
+            level1Map:drawLayer(level1Map.layers["letters"]) --desenhando o puzzle
+            -- Desenhar todos os objetos "and"
+            for _, gate in pairs(andGates) do
+                love.graphics.rectangle("fill", gate.x, gate.y, gate.width, gate.height)
+            end
+            
             player.anim:draw(player.spriteSheet, player.x, player.y, nil, 5, nil, 6, 9) --desenhando o boneco
             --world:draw()
         cam:detach() 
@@ -304,12 +327,26 @@ function love.keypressed(key)
     if key == 'e' then
         if game.state["running"] then
             if isNearInteractionObject() then
-                changeGameState("level1")
+                currentMap = "level1"
+                clearColliders()
+                loadMapCollisions(level1Map)
+            end
+
+            local nearbyGate = isNearGate()
+            if nearbyGate then
+                if heldGate == nil then
+                    heldGate = nearbyGate  -- Segura o objeto "and" mais próximo
+                    isGateHeld = true
+                else
+                    heldGate = nil  -- Solta o objeto "and"
+                    isGateHeld = false
+                end
             end
         end
     end
 end
 
+-- Função para ver se está próximo do objeto a ser clicado
 function isNearInteractionObject()
     local playerX, playerY = player.x, player.y  -- Posições do jogador
     local Chair1X, Chair1Y = 64, 896
@@ -323,4 +360,43 @@ function isNearInteractionObject()
         return true
     end
     return false
+end
+
+-- Função para remover todas as colisões
+function clearColliders()
+    for i, wall in ipairs(walls) do
+        wall:destroy() 
+    end
+    walls = {}
+end
+
+-- Função para carregar as colisões do mapa atual
+function loadMapCollisions(map)
+    if map.layers["Walls"] then
+        for i, obj in pairs(map.layers["Walls"].objects) do
+            local wall = world:newRectangleCollider(obj.x, obj.y, obj.width, obj.height)
+            wall:setType('static')
+            table.insert(walls, wall)
+        end
+    end
+end
+
+function isNearGate()
+    local playerX, playerY = player.x, player.y
+    for _, gate in pairs(andGates) do
+        local gateX, gateY = gate.x, gate.y
+
+        -- Verifica se o jogador está dentro de uma distância de 100px de um dos objetos "and"
+        if math.abs(playerX - gateX) < 100 and math.abs(playerY - gateY) < 100 then
+            return gate  -- Retorna o objeto "and" mais próximo
+        end
+    end
+    return nil
+end
+
+function moveGate(gateObjects, dx, dy)
+    for _, gate in pairs(gateObjects) do
+        gate.x = gate.x + dx  -- Move cada peça na direção X
+        gate.y = gate.y + dy  -- Move cada peça na direção Y
+    end
 end

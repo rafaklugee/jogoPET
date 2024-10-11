@@ -1,12 +1,12 @@
 {
-    "activeFile": "testMap.tmx",
+    "activeFile": "level1.tmx",
     "expandedProjectPaths": [
         "."
     ],
     "file.lastUsedOpenFilter": "Todos os Ficheiros (*)",
     "fileStates": {
         "": {
-            "scaleInDock": 0.5
+            "scaleInDock": 1
         },
         "#Fantasy_tileset0FINISHED": {
             "scaleInEditor": 3
@@ -48,6 +48,9 @@
         },
         "level1.tmx#TX Tileset Wall": {
             "scaleInDock": 1
+        },
+        "level1.tmx#pixil-frame-0": {
+            "scaleInEditor": 1
         },
         "level1.tmx#test-tiled": {
             "scaleInDock": 0.75
@@ -103,15 +106,15 @@
         }
     },
     "last.exportedFilePath": "/home/rafaelkluge/jogoPET/maps",
-    "last.imagePath": "/home/rafaelkluge/Downloads/office_tiles/office",
+    "last.imagePath": "/home/rafaelkluge/jogoPET/maps",
     "map.lastUsedExportFilter": "Todos os Ficheiros (*)",
     "openFiles": [
-        "testMap.tmx"
+        "level1.tmx"
     ],
     "project": "level1.tiled-project",
     "recentFiles": [
-        "testMap.tmx",
         "level1.tmx",
+        "testMap.tmx",
         "menu.tmx",
         "or.tmx"
     ],
