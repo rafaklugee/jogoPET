@@ -81,9 +81,7 @@ function love.mousepressed(x, y, button, istouch, presses) --Mouse clicar nos bo
     end
 end
 
-local isGateHeld = false  -- Variável que controla se a porta está sendo segurada
 local gate = {}  -- Estrutura para representar a porta AND
-local andGates = {} -- Armazena todos os objetos que representam "and"
 
 function love.load()
     wf = require 'libraries/windfield'
@@ -101,6 +99,8 @@ function love.load()
     menuMap = sti ('maps/menu.lua')
     -- Levels
     level1Map = sti('maps/level1.lua')
+    -- Texturas
+    andGateTexture = love.graphics.newImage('maps/andlogic.png')
     
     --Porta and na posição inicial (level1)
     gate = {
@@ -110,18 +110,9 @@ function love.load()
         height = 177.333
     }
 
-    if level1Map.layers["Walls"] then
-        for _, object in pairs(level1Map.layers["Walls"].objects) do
-            if object.type == "and_gate" then  -- Certifique-se de que os objetos têm o tipo correto
-                table.insert(andGates, object)  -- Adiciona cada objeto "and" à tabela
-            end
-        end
-    end
+    gate.collider = world:newRectangleCollider(gate.x, gate.y, gate.width, gate.height) -- Ajuste as dimensões conforme necessário
+    gate.collider:setType('static')
 
-    if isGateHeld then
-        gateTileX = player.x
-        gateTileY = player.y
-    end
 
     love.window.setTitle("PETGAME")
     love.mouse.setVisible(false)
@@ -203,6 +194,12 @@ function love.update(dt)
 
         player.collider:setLinearVelocity(vx, vy)
 
+        -- Movimentar a porta se ela estiver sendo segurada
+        if gate.isHeld then
+            gate.x = player.x -- A porta acompanha o jogador
+            gate.y = player.y
+        end
+
         if isMoving == false then
             player.anim:gotoFrame(2)
         end
@@ -237,13 +234,6 @@ function love.update(dt)
         cam.y = (mapH - h/2)
     end
     --
-    
-    -- Se o jogador estiver segurando a porta, movê-la com ele
-    if isGateHeld and heldGate then
-        local dx = player.x - heldGate.x  -- Diferença na posição X
-        local dy = player.y - heldGate.y  -- Diferença na posição Y
-        moveGate(andGates, dx, dy)  -- Mover todas as peças da porta "and"
-    end
 end
 
 function love.draw()
@@ -274,15 +264,12 @@ function love.draw()
     if currentMap == "level1" then
         cam:attach()
             level1Map:drawLayer(level1Map.layers["Ground"]) --desenhando chão
-            level1Map:drawLayer(level1Map.layers["and"]) --desenhando porta lógica and
             level1Map:drawLayer(level1Map.layers["letters"]) --desenhando o puzzle
             -- Desenhar todos os objetos "and"
-            for _, gate in pairs(andGates) do
-                love.graphics.rectangle("fill", gate.x, gate.y, gate.width, gate.height)
-            end
-            
+            love.graphics.draw(andGateTexture, gate.x, gate.y)
+        
             player.anim:draw(player.spriteSheet, player.x, player.y, nil, 5, nil, 6, 9) --desenhando o boneco
-            --world:draw()
+            world:draw()
         cam:detach() 
     end
 
@@ -329,21 +316,35 @@ function love.keypressed(key)
             if isNearInteractionObject() then
                 currentMap = "level1"
                 clearColliders()
-                loadMapCollisions(level1Map)
+                --loadMapCollisions(level1Map)
             end
-
-            local nearbyGate = isNearGate()
-            if nearbyGate then
-                if heldGate == nil then
-                    heldGate = nearbyGate  -- Segura o objeto "and" mais próximo
-                    isGateHeld = true
-                else
-                    heldGate = nil  -- Solta o objeto "and"
-                    isGateHeld = false
+            if currentMap == "level1" then
+                if isNearGate() then
+                    gate.isHeld = true -- Segura a porta
                 end
             end
         end
     end
+end
+
+function love.keyreleased(key)
+    if key == 'e' then
+        gate.isHeld = false -- Solta a porta
+    end
+end
+
+function isNearGate()
+    local playerX, playerY = player.x, player.y
+
+    if not gate.x or not gate.y then
+        return false
+    end
+
+    -- Verifica se o jogador está próximo da porta
+    if math.abs(playerX - gate.x) < 50 and math.abs(playerY - gate.y) < 50 then
+        return true
+    end
+    return false
 end
 
 -- Função para ver se está próximo do objeto a ser clicado
@@ -378,25 +379,5 @@ function loadMapCollisions(map)
             wall:setType('static')
             table.insert(walls, wall)
         end
-    end
-end
-
-function isNearGate()
-    local playerX, playerY = player.x, player.y
-    for _, gate in pairs(andGates) do
-        local gateX, gateY = gate.x, gate.y
-
-        -- Verifica se o jogador está dentro de uma distância de 100px de um dos objetos "and"
-        if math.abs(playerX - gateX) < 100 and math.abs(playerY - gateY) < 100 then
-            return gate  -- Retorna o objeto "and" mais próximo
-        end
-    end
-    return nil
-end
-
-function moveGate(gateObjects, dx, dy)
-    for _, gate in pairs(gateObjects) do
-        gate.x = gate.x + dx  -- Move cada peça na direção X
-        gate.y = gate.y + dy  -- Move cada peça na direção Y
     end
 end
