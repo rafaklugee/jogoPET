@@ -52,6 +52,7 @@ local buttons = { --botões do menu
     paused_state = {}
 }
 
+local andGate = {}
 
 local function changeGameState(state)
     game.state["menu"] = state == "menu"
@@ -81,8 +82,6 @@ function love.mousepressed(x, y, button, istouch, presses) --Mouse clicar nos bo
     end
 end
 
-local gate = {}  -- Estrutura para representar a porta AND
-
 function love.load()
     wf = require 'libraries/windfield'
     world = wf.newWorld(0, 0)
@@ -101,18 +100,14 @@ function love.load()
     level1Map = sti('maps/level1.lua')
     -- Texturas
     andGateTexture = love.graphics.newImage('maps/andlogic.png')
-    
-    --Porta and na posição inicial (level1)
-    gate = {
-        x = 762.667,
-        y = 1054.67,
-        width = 112,
-        height = 177.333
+
+    andGate = {
+        x = 762,
+        y = 1054,
+        width = andGateTexture:getWidth(),
+        height = andGateTexture:getHeight(),
+        beingCarried = false
     }
-
-    gate.collider = world:newRectangleCollider(gate.x, gate.y, gate.width, gate.height) -- Ajuste as dimensões conforme necessário
-    gate.collider:setType('static')
-
 
     love.window.setTitle("PETGAME")
     love.mouse.setVisible(false)
@@ -193,11 +188,13 @@ function love.update(dt)
         end
 
         player.collider:setLinearVelocity(vx, vy)
+        player.x = player.collider:getX()
+        player.y = player.collider:getY()
 
-        -- Movimentar a porta se ela estiver sendo segurada
-        if gate.isHeld then
-            gate.x = player.x -- A porta acompanha o jogador
-            gate.y = player.y
+        -- Atualizar posição da porta lógica se ela estiver sendo carregada
+        if andGate.beingCarried then
+            andGate.x = player.x
+            andGate.y = player.y
         end
 
         if isMoving == false then
@@ -266,10 +263,10 @@ function love.draw()
             level1Map:drawLayer(level1Map.layers["Ground"]) --desenhando chão
             level1Map:drawLayer(level1Map.layers["letters"]) --desenhando o puzzle
             -- Desenhar todos os objetos "and"
-            love.graphics.draw(andGateTexture, gate.x, gate.y)
-        
+            love.graphics.draw(andGateTexture, andGate.x, andGate.y)
+
             player.anim:draw(player.spriteSheet, player.x, player.y, nil, 5, nil, 6, 9) --desenhando o boneco
-            world:draw()
+            --world:draw()
         cam:detach() 
     end
 
@@ -316,32 +313,27 @@ function love.keypressed(key)
             if isNearInteractionObject() then
                 currentMap = "level1"
                 clearColliders()
-                --loadMapCollisions(level1Map)
+                loadMapCollisions(level1Map)
             end
             if currentMap == "level1" then
                 if isNearGate() then
-                    gate.isHeld = true -- Segura a porta
+                    -- Alternar entre pegar e soltar a porta
+                    andGate.beingCarried = not andGate.beingCarried
                 end
             end
         end
     end
 end
 
-function love.keyreleased(key)
-    if key == 'e' then
-        gate.isHeld = false -- Solta a porta
-    end
-end
-
 function isNearGate()
     local playerX, playerY = player.x, player.y
 
-    if not gate.x or not gate.y then
+    if not andGate.x or not andGate.y then
         return false
     end
 
     -- Verifica se o jogador está próximo da porta
-    if math.abs(playerX - gate.x) < 50 and math.abs(playerY - gate.y) < 50 then
+    if math.abs(playerX - andGate.x) < 100 and math.abs(playerY - andGate.y) < 100 then
         return true
     end
     return false
