@@ -1,5 +1,5 @@
 {
-    "activeFile": "level1.tmx",
+    "activeFile": "level2.tmx",
     "expandedProjectPaths": [
         "."
     ],
@@ -19,7 +19,7 @@
             "selectedLayer": 1,
             "viewCenter": {
                 "x": 592.4242424242424,
-                "y": 1190.9090909090908
+                "y": 924.2424242424241
             }
         },
         "level1.tmx#TX Plant": {
@@ -65,6 +65,32 @@
         "level1.tmx#tileset": {
             "scaleInDock": 0.5
         },
+        "level2.tmx": {
+            "scale": 0.33,
+            "selectedLayer": 1,
+            "viewCenter": {
+                "x": 1071.212121212121,
+                "y": 545.4545454545454
+            }
+        },
+        "level2.tmx#TX Tileset Grass": {
+            "scaleInDock": 1
+        },
+        "level2.tmx#TX Tileset Stone Ground": {
+            "scaleInDock": 1
+        },
+        "level2.tmx#a_b": {
+            "scaleInDock": 0.33
+        },
+        "level2.tmx#a_b+c_d": {
+            "scaleInDock": 1
+        },
+        "level2.tmx#abcd": {
+            "scaleInDock": 1
+        },
+        "level2.tmx#test-tiled": {
+            "scaleInDock": 1
+        },
         "menu.tmx": {
             "scale": 1.0025240384615384,
             "selectedLayer": 0,
@@ -88,11 +114,11 @@
             "scaleInDock": 0.5
         },
         "testMap.tmx": {
-            "scale": 0.5,
-            "selectedLayer": 0,
+            "scale": 1,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 662,
-                "y": 764
+                "x": 1767.5,
+                "y": 1014
             }
         },
         "testMap.tmx#0001": {
@@ -101,25 +127,35 @@
         "testMap.tmx#0003": {
             "scaleInDock": 1
         },
+        "testMap.tmx#door": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "testMap.tmx#door1": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
         "testMap.tmx#office": {
             "scaleInDock": 0.75
         },
         "testMap.tmx#test-tiled": {
-            "scaleInDock": 1,
+            "scaleInDock": 0.5,
             "scaleInEditor": 1
         },
         "testMap.tmx#tileset": {
-            "scaleInDock": 0.5
+            "scaleInDock": 0.5,
+            "scaleInEditor": 1
         }
     },
     "last.exportedFilePath": "/home/rafaelkluge/jogoPET/maps",
     "last.imagePath": "/home/rafaelkluge/jogoPET/maps",
-    "map.lastUsedExportFilter": "Todos os Ficheiros (*)",
+    "map.lastUsedExportFilter": "Ficheiros Lua (*.lua)",
     "openFiles": [
-        "level1.tmx"
+        "level2.tmx"
     ],
     "project": "level1.tiled-project",
     "recentFiles": [
+        "level2.tmx",
         "level1.tmx",
         "testMap.tmx",
         "menu.tmx",

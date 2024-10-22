@@ -52,7 +52,23 @@ local buttons = { --botões do menu
     paused_state = {}
 }
 
+local Chair1X, Chair1Y = 64, 896
+
+local currentMap = "mainMap"
+
 local andGate = {}
+
+local gateDestinations = {
+    {x = 747, y = 682} -- Posição correta para a porta AND "gateDestinations[1]"
+}
+
+local previousPlayerX, previousPlayerY
+
+local isInteractionObjectActive = true -- Variável para verificar se o objeto está ativo
+
+local showInteractionMessage = false
+
+local showInteractionMessage2 = false
 
 local function changeGameState(state)
     game.state["menu"] = state == "menu"
@@ -123,6 +139,12 @@ function love.load()
 
     font8bit = love.graphics.newFont('libraries/fonts/8-bit-pusab.ttf')
 
+    fontSmall = love.graphics.newFont('libraries/fonts/8-bit-pusab.ttf', 10)
+
+    fontSmaller = love.graphics.newFont('libraries/fonts/8-bit-pusab.ttf', 8)
+
+    balloonImage = love.graphics.newImage('maps/balloon_whitebackground.png')
+
     player.collider = world:newBSGRectangleCollider(400, 250, 50, 80, 10)
     player.collider:setFixedRotation(true)
     
@@ -159,6 +181,10 @@ function love.update(dt)
 
     if game.state["running"] then
         player.anim:update(dt)
+
+        showInteractionMessage = isNearInteractionObject()
+
+        showInteractionMessage2 = isNearGate()
 
         local vx = 0
         local vy = 0
@@ -254,6 +280,19 @@ function love.draw()
             gameMap:drawLayer(gameMap.layers["Ground"]) --desenhando chão
             gameMap:drawLayer(gameMap.layers["Trees"]) --desenhando árvores
             player.anim:draw(player.spriteSheet, player.x, player.y, nil, 5, nil, 6, 9) --desenhando o boneco
+
+            if showInteractionMessage then
+                -- Posição da mensagem em relação ao jogador
+                local messageX = Chair1X - 30
+                local messageY = Chair1Y - 50
+
+                love.graphics.draw(balloonImage, messageX - 30, messageY - 15)
+
+                love.graphics.setFont(fontSmall)
+                love.graphics.setColor(0, 0, 0, 1) -- Cor preta
+                love.graphics.printf("aperte E para interagir", messageX, messageY, 100, "center")
+                love.graphics.setColor(1, 1, 1, 1) -- Resetando cor para branco
+            end
             --world:draw()
         cam:detach() 
     end
@@ -264,6 +303,19 @@ function love.draw()
             level1Map:drawLayer(level1Map.layers["letters"]) --desenhando o puzzle
             -- Desenhar todos os objetos "and"
             love.graphics.draw(andGateTexture, andGate.x, andGate.y)
+
+            if showInteractionMessage2 then
+                -- Posição da mensagem em relação ao jogador
+                local messageX = andGate.x - 30
+                local messageY = andGate.y - 50
+
+                love.graphics.draw(balloonImage, messageX - 30, messageY - 18)
+
+                love.graphics.setFont(fontSmaller)
+                love.graphics.setColor(0, 0, 0, 1) -- Cor preta
+                love.graphics.printf("aperte E para pegar/soltar a porta logica", messageX, messageY, 100, "center")
+                love.graphics.setColor(1, 1, 1, 1) -- Resetando cor para branco
+            end
 
             player.anim:draw(player.spriteSheet, player.x, player.y, nil, 5, nil, 6, 9) --desenhando o boneco
             --world:draw()
@@ -291,6 +343,47 @@ function love.draw()
     end
 end
 
+local function isGateAtCorrectPosition(gate, destination)
+    local tolerance = 40 -- Tolerância para considerar que a porta está na posição correta
+    return math.abs(gate.x - destination.x) < tolerance and math.abs(gate.y - destination.y) < tolerance
+end
+
+local function checkGatePositions()
+    if isGateAtCorrectPosition(andGate, gateDestinations[1]) then
+        -- Portas estão na posição correta, vá para o mapa principal
+        changeGameState("running")
+        clearColliders()
+        loadMapCollisions(gameMap)
+        currentMap = "mainMap"
+
+        -- Restaura a posição do jogador
+        if previousPlayerX and previousPlayerY then
+            player.x = previousPlayerX
+            player.y = previousPlayerY
+            player.collider:setPosition(previousPlayerX, previousPlayerY)
+        end
+
+        -- Remover o collider do objeto de interação
+        --for i, wall in ipairs(walls) do
+        --    if wall:isDestroyed() == false then
+        --        wall:destroy()
+        --    end
+        --end
+
+        -- Desativar o objeto de interação
+        isInteractionObjectActive = false
+
+        -- Desbloquear o próximo nível se houver
+        --if currentLevel < maxLevel then
+        --    currentLevel = currentLevel + 1
+        --end
+    end
+end
+
+local function printPlayerPosition()
+    print("Player position: x = " .. player.x .. ", y = " .. player.y)
+end
+
 -- Teclas de atalho
 function love.keypressed(key)
     if key == 'escape' then
@@ -311,6 +404,8 @@ function love.keypressed(key)
     if key == 'e' then
         if game.state["running"] then
             if isNearInteractionObject() then
+                -- Salva a posição atual do jogador
+                previousPlayerX, previousPlayerY = player.x, player.y
                 currentMap = "level1"
                 clearColliders()
                 loadMapCollisions(level1Map)
@@ -319,9 +414,14 @@ function love.keypressed(key)
                 if isNearGate() then
                     -- Alternar entre pegar e soltar a porta
                     andGate.beingCarried = not andGate.beingCarried
+                    checkGatePositions()
                 end
             end
         end
+    end
+
+    if key == 'p' then -- Pressione 'p' para ver a posição
+        printPlayerPosition()
     end
 end
 
@@ -341,15 +441,18 @@ end
 
 -- Função para ver se está próximo do objeto a ser clicado
 function isNearInteractionObject()
+    if not isInteractionObjectActive then
+        return false
+    end
+
     local playerX, playerY = player.x, player.y  -- Posições do jogador
-    local Chair1X, Chair1Y = 64, 896
 
     if not Chair1X or not Chair1Y then
         return false  -- Se as variáveis não foram inicializadas, o jogador não está perto do objeto
     end
 
     -- Verifica se o jogador está dentro de uma certa distância do objeto
-    if math.abs(playerX - Chair1X) < 100 and math.abs(playerY - Chair1Y) < 100 then
+    if math.abs(playerX - Chair1X) < 95 and math.abs(playerY - Chair1Y) < 95 then
         return true
     end
     return false
