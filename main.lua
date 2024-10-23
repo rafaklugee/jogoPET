@@ -163,7 +163,7 @@ function love.load()
 
     sounds = {}
     sounds.blip = love.audio.newSource('sounds/blip.mp3', 'static')
-    sounds.music = love.audio.newSource('sounds/staff_roll.mp3', 'stream')
+    sounds.music = love.audio.newSource('sounds/smw_bonus.mp3', 'stream')
     sounds.music:setLooping(true)
 
     sounds.music:play()
@@ -562,4 +562,3 @@ function loadMapCollisions(map)
         end
     end
 end
-
