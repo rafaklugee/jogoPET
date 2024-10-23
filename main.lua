@@ -52,19 +52,27 @@ local buttons = { --botões do menu
     paused_state = {}
 }
 
-local Chair1X, Chair1Y = 64, 896
-
 local currentMap = "mainMap"
 
 local andGate = {}
+local orGate = {}
 
 local gateDestinations = {
     {x = 747, y = 682} -- Posição correta para a porta AND "gateDestinations[1]"
 }
 
+local chairs = {
+    {x = 64, y = 896},
+    {x = 1766, y = 1489}
+}
+
 local previousPlayerX, previousPlayerY
 
-local isInteractionObjectActive = true -- Variável para verificar se o objeto está ativo
+local interactionStates = {
+    level1 = true,
+    level2 = true,
+    level3 = true
+}
 
 local showInteractionMessage = false
 
@@ -114,14 +122,20 @@ function love.load()
     menuMap = sti ('maps/menu.lua')
     -- Levels
     level1Map = sti('maps/level1.lua')
+    level2Map = sti('maps/level2.lua')
     -- Texturas
     andGateTexture = love.graphics.newImage('maps/andlogic.png')
+    orGateTexture = love.graphics.newImage('maps/orlogic.png')
 
     andGate = {
         x = 762,
         y = 1054,
-        width = andGateTexture:getWidth(),
-        height = andGateTexture:getHeight(),
+        beingCarried = false
+    }
+
+    orGate = {
+        x = 854,
+        y = 1054,
         beingCarried = false
     }
 
@@ -182,7 +196,9 @@ function love.update(dt)
     if game.state["running"] then
         player.anim:update(dt)
 
-        showInteractionMessage = isNearInteractionObject()
+        local nearInteraction, chairIndex = isNearInteractionObject()
+
+        showInteractionMessage = nearInteraction
 
         showInteractionMessage2 = isNearGate()
 
@@ -221,6 +237,11 @@ function love.update(dt)
         if andGate.beingCarried then
             andGate.x = player.x
             andGate.y = player.y
+        end
+
+        if orGate.beingCarried then
+            orGate.x = player.x
+            orGate.y = player.y
         end
 
         if isMoving == false then
@@ -283,8 +304,8 @@ function love.draw()
 
             if showInteractionMessage then
                 -- Posição da mensagem em relação ao jogador
-                local messageX = Chair1X - 30
-                local messageY = Chair1Y - 50
+                local messageX = chairs[1].x - 30
+                local messageY = chairs[1].y - 50
 
                 love.graphics.draw(balloonImage, messageX - 30, messageY - 15)
 
@@ -322,6 +343,19 @@ function love.draw()
         cam:detach() 
     end
 
+    if currentMap == "level2" then
+        cam:attach()
+            level2Map:drawLayer(level2Map.layers["Ground"]) --desenhando chão
+            level2Map:drawLayer(level2Map.layers["letters"]) --desenhando o puzzle
+            -- Desenhar todos os objetos "and"
+            love.graphics.draw(andGateTexture, andGate.x, andGate.y)
+            love.graphics.draw(orGateTexture, orGate.x, orGate.y)
+
+            player.anim:draw(player.spriteSheet, player.x, player.y, nil, 5, nil, 6, 9) --desenhando o boneco
+            --world:draw()
+        cam:detach() 
+    end
+
     if game.state["menu"] then
         menuMap:drawLayer(menuMap.layers["default"])
         menuMap:drawLayer(menuMap.layers["trees"])
@@ -349,36 +383,47 @@ local function isGateAtCorrectPosition(gate, destination)
 end
 
 local function checkGatePositions()
-    if isGateAtCorrectPosition(andGate, gateDestinations[1]) then
-        -- Portas estão na posição correta, vá para o mapa principal
-        changeGameState("running")
-        clearColliders()
-        loadMapCollisions(gameMap)
-        currentMap = "mainMap"
+    if currentMap == "level1" then
+        if isGateAtCorrectPosition(andGate, gateDestinations[1]) then
+            -- Portas estão na posição correta, vá para o mapa principal
+            interactionStates.level1 = false
+            changeGameState("running")
+            clearColliders()
+            loadMapCollisions(gameMap)
+            currentMap = "mainMap"
+        end
+    end
 
-        -- Restaura a posição do jogador
+    if currentMap == "level2" then
+        if isGateAtCorrectPosition(andGate, gateDestinations[1]) and isGateAtCorrectPosition(orGate, gateDestinations[1]) then
+            -- Portas estão na posição correta, vá para o mapa principal
+            interactionStates.level2 = false
+            changeGameState("running")
+            clearColliders()
+            loadMapCollisions(gameMap)
+            currentMap = "mainMap"
+        end
+    end
+
+    -- Restaura a posição do jogador
+    if currentMap == "mainMap" then
         if previousPlayerX and previousPlayerY then
             player.x = previousPlayerX
             player.y = previousPlayerY
             player.collider:setPosition(previousPlayerX, previousPlayerY)
         end
-
-        -- Remover o collider do objeto de interação
-        --for i, wall in ipairs(walls) do
-        --    if wall:isDestroyed() == false then
-        --        wall:destroy()
-        --    end
-        --end
-
-        -- Desativar o objeto de interação
-        isInteractionObjectActive = false
-
-        -- Desbloquear o próximo nível se houver
-        --if currentLevel < maxLevel then
-        --    currentLevel = currentLevel + 1
-        --end
     end
+
+        --[[ 
+        Remover o collider do objeto de interação
+        for i, wall in ipairs(walls) do
+            if wall:isDestroyed() == false then
+                wall:destroy()
+            end
+        end
+        --]]
 end
+
 
 local function printPlayerPosition()
     print("Player position: x = " .. player.x .. ", y = " .. player.y)
@@ -403,14 +448,23 @@ function love.keypressed(key)
 
     if key == 'e' then
         if game.state["running"] then
-            if isNearInteractionObject() then
+            local bool, nearbyChair = isNearInteractionObject()
+            if nearbyChair then
                 -- Salva a posição atual do jogador
                 previousPlayerX, previousPlayerY = player.x, player.y
-                currentMap = "level1"
+                
+                -- Verifica qual cadeira está perto e muda o mapa de acordo
+                if nearbyChair == 1 then
+                    currentMap = "level1"
+                elseif nearbyChair == 2 then
+                    currentMap = "level2"
+                end
+                -- Limpa e carrega as colisões do novo mapa
                 clearColliders()
-                loadMapCollisions(level1Map)
+                loadMapCollisions(currentMap)
+
             end
-            if currentMap == "level1" then
+            if currentMap == "level1" or currentMap == "level2" then
                 if isNearGate() then
                     -- Alternar entre pegar e soltar a porta
                     andGate.beingCarried = not andGate.beingCarried
@@ -439,24 +493,25 @@ function isNearGate()
     return false
 end
 
--- Função para ver se está próximo do objeto a ser clicado
+-- Função para verificar proximidade do objeto de interação
 function isNearInteractionObject()
-    if not isInteractionObjectActive then
-        return false
-    end
-
     local playerX, playerY = player.x, player.y  -- Posições do jogador
 
-    if not Chair1X or not Chair1Y then
-        return false  -- Se as variáveis não foram inicializadas, o jogador não está perto do objeto
+    -- Verifica se o jogador está perto de qualquer cadeira e retorna o índice
+    for i, chair in ipairs(chairs) do
+        if math.abs(playerX - chair.x) < 95 and math.abs(playerY - chair.y) < 95 then
+            -- Verifica se o nível correspondente está ativo
+            if i == 1 and interactionStates.level1 then
+                return true, i
+            elseif i == 2 and interactionStates.level2 then
+                return true, i
+            end
+        end
     end
 
-    -- Verifica se o jogador está dentro de uma certa distância do objeto
-    if math.abs(playerX - Chair1X) < 95 and math.abs(playerY - Chair1Y) < 95 then
-        return true
-    end
-    return false
+    return false -- Se não estiver perto de nenhuma cadeira, retorna falso
 end
+
 
 -- Função para remover todas as colisões
 function clearColliders()
@@ -466,13 +521,16 @@ function clearColliders()
     walls = {}
 end
 
--- Função para carregar as colisões do mapa atual
 function loadMapCollisions(map)
-    if map.layers["Walls"] then
-        for i, obj in pairs(map.layers["Walls"].objects) do
-            local wall = world:newRectangleCollider(obj.x, obj.y, obj.width, obj.height)
-            wall:setType('static')
-            table.insert(walls, wall)
+    if map and map.layers then  -- Verifica se o mapa e as camadas existem
+        local collisionLayer = map.layers["Walls"]  -- Obtem a camada de colisão chamada "Walls"
+        if collisionLayer then
+            for _, obj in ipairs(collisionLayer.objects) do
+                local wall = world:newRectangleCollider(obj.x, obj.y, obj.width, obj.height)
+                wall:setType('static')  -- Define o collider como estático
+                table.insert(walls, wall)  -- Adiciona o collider à tabela walls
+            end
         end
     end
 end
+
