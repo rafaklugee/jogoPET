@@ -55,10 +55,16 @@ local buttons = { --botões do menu
 local currentMap = "mainMap"
 
 local andGate = {}
+
 local orGate = {}
 
+local gates = {}
+
 local gateDestinations = {
-    {x = 747, y = 682} -- Posição correta para a porta AND "gateDestinations[1]"
+    {x = 747, y = 682}, -- Posição correta para a porta AND level1
+    {x = 745, y = 676}, -- Posição correta para a porta AND1 level2
+    {x = 745, y = 874}, -- Posição correta para a porta AND2 level2
+    {x = 965, y = 768}  -- Posição correta para a porta OR level2
 }
 
 local chairs = {
@@ -70,8 +76,7 @@ local previousPlayerX, previousPlayerY
 
 local interactionStates = {
     level1 = true,
-    level2 = true,
-    level3 = true
+    level2 = true
 }
 
 local showInteractionMessage = false
@@ -133,11 +138,25 @@ function love.load()
         beingCarried = false
     }
 
-    orGate = {
-        x = 854,
-        y = 1054,
+    andGateExtra = {
+        x = 426,
+        y = 717,
         beingCarried = false
     }
+
+    orGate = {
+        x = 526,
+        y = 1246,
+        beingCarried = false
+    }
+
+    --[[
+    gates = {
+        {x = 762, y = 1054, beingCarried = false},
+        {x = 426, y = 717, beingCarried = false},
+        {x = 526, y = 1246, beingCarried = false}
+    }
+    --]]
 
     love.window.setTitle("PETGAME")
     love.mouse.setVisible(false)
@@ -200,7 +219,7 @@ function love.update(dt)
 
         showInteractionMessage = nearInteraction
 
-        showInteractionMessage2 = isNearGate()
+        showInteractionMessage2 = isNearGate(andGate)
 
         local vx = 0
         local vy = 0
@@ -237,6 +256,11 @@ function love.update(dt)
         if andGate.beingCarried then
             andGate.x = player.x
             andGate.y = player.y
+        end
+
+        if andGateExtra.beingCarried then
+            andGateExtra.x = player.x
+            andGateExtra.y = player.y
         end
 
         if orGate.beingCarried then
@@ -277,26 +301,12 @@ function love.update(dt)
     if cam.y > (mapH - h/2) then
         cam.y = (mapH - h/2)
     end
-    --
 end
 
 function love.draw()
-    --[[
-    love.graphics.setFont(fonts.medium.font)
-    love.graphics.printf( --obter o FPS
-        "FPS: " .. love.timer.getFPS(),
-        fonts.medium.font,
-        10,
-        love.graphics.getHeight() - 30,
-        love.graphics.getWidth()
-    )
-    ]]
-
-    --love.graphics.circle ("fill", player.x, player.y, player.radius) --desenhando a bolinha
     love.graphics.setFont(font8bit)
 
     if game.state["running"] or game.state["paused"] then
-        --love.graphics.printf(math.floor(game.points), fonts.large.font, 0, 10, love.graphics.getWidth(), "center")
         cam:attach()
             gameMap:drawLayer(gameMap.layers["Ground"]) --desenhando chão
             gameMap:drawLayer(gameMap.layers["Trees"]) --desenhando árvores
@@ -349,6 +359,7 @@ function love.draw()
             level2Map:drawLayer(level2Map.layers["letters"]) --desenhando o puzzle
             -- Desenhar todos os objetos "and"
             love.graphics.draw(andGateTexture, andGate.x, andGate.y)
+            love.graphics.draw(andGateTexture, andGateExtra.x, andGateExtra.y)
             love.graphics.draw(orGateTexture, orGate.x, orGate.y)
 
             player.anim:draw(player.spriteSheet, player.x, player.y, nil, 5, nil, 6, 9) --desenhando o boneco
@@ -395,7 +406,9 @@ local function checkGatePositions()
     end
 
     if currentMap == "level2" then
-        if isGateAtCorrectPosition(andGate, gateDestinations[1]) and isGateAtCorrectPosition(orGate, gateDestinations[1]) then
+        if isGateAtCorrectPosition(andGate, gateDestinations[2]) and 
+           isGateAtCorrectPosition(andGateExtra, gateDestinations[3]) and
+           isGateAtCorrectPosition(orGate, gateDestinations[4]) then
             -- Portas estão na posição correta, vá para o mapa principal
             interactionStates.level2 = false
             changeGameState("running")
@@ -464,12 +477,24 @@ function love.keypressed(key)
                 loadMapCollisions(currentMap)
 
             end
-            if currentMap == "level1" or currentMap == "level2" then
-                if isNearGate() then
+            if currentMap == "level1" then
+                if isNearGate(andGate) then
                     -- Alternar entre pegar e soltar a porta
                     andGate.beingCarried = not andGate.beingCarried
-                    checkGatePositions()
                 end
+                checkGatePositions()
+            end
+            if currentMap == "level2" then
+                if isNearGate(andGate) then
+                    andGate.beingCarried = not andGate.beingCarried
+                end
+                if isNearGate(andGateExtra) then
+                    andGateExtra.beingCarried = not andGateExtra.beingCarried
+                end
+                if isNearGate(orGate) then
+                    orGate.beingCarried = not orGate.beingCarried
+                end
+                checkGatePositions()
             end
         end
     end
@@ -479,17 +504,21 @@ function love.keypressed(key)
     end
 end
 
-function isNearGate()
+function isNearGate(gate)
+    if gate == nil then
+        return false
+    end
+
     local playerX, playerY = player.x, player.y
 
-    if not andGate.x or not andGate.y then
+    if not gate.x or not gate.y then
         return false
     end
 
     -- Verifica se o jogador está próximo da porta
-    if math.abs(playerX - andGate.x) < 100 and math.abs(playerY - andGate.y) < 100 then
-        return true
-    end
+        if math.abs(playerX - gate.x) < 100 and math.abs(playerY - gate.y) < 100 then
+            return true
+        end
     return false
 end
 
